@@ -1,0 +1,39 @@
+name: Atualizar stats do perfil
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"   # a cada 6 horas
+  workflow_dispatch:         # botão "Run workflow" manual
+  push:
+    branches: [main]
+    paths: ["scripts/**", ".github/workflows/stats.yml"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Gerar SVGs
+        env:
+          GH_USER: ${{ github.repository_owner }}
+          # Use um PAT (secret STATS_TOKEN) para contar contribuições privadas;
+          # sem ele, usa o token padrão do Actions (só públicas).
+          GH_TOKEN: ${{ secrets.STATS_TOKEN || secrets.GITHUB_TOKEN }}
+          PROMPT_NAME: diogo
+        run: python scripts/generate_stats.py
+
+      - name: Commitar se mudou
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/*.svg
+          git diff --cached --quiet || git commit -m "chore: atualiza stats do perfil"
+          git push
